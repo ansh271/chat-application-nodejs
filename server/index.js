@@ -4,30 +4,31 @@ import { WebSocketServer } from "ws";
 const app = express();
 const port = 8080;
 
-// Start HTTP server (Express)
 const server = app.listen(port, () => {
-  console.log("Server is listening....");
+  console.log(`Server is listening on http://localhost:${port}`);
 });
 
-// Attach WebSocket server to the same HTTP server
+// Create WebSocket server
 const wss = new WebSocketServer({ server });
 
-// Optionally: run WebSocket on a different port
-// const wss = new WebSocketServer({ port: 8000 });
-
-// Handle WebSocket connections
+// Listen for new client connections
 wss.on("connection", (ws) => {
+  console.log("A client connected!");
 
-  // When server receives a message
-  ws.on("message", (data) => {
-    console.log("data from client : %s", data);
+  // Listen for messages from a client
+  ws.on("message", (message) => {
+    console.log(`Received: ${message}`);
 
-    // Respond to client
-    ws.send("thanks buddy");
+    // Broadcast message to all connected clients
+    wss.clients.forEach((client) => {
+      if (client.readyState === ws.OPEN) {
+        client.send(message.toString());
+      }
+    });
   });
 
   // When client disconnects
   ws.on("close", () => {
-    console.log("Client disconnected");
+    console.log("A client disconnected");
   });
 });

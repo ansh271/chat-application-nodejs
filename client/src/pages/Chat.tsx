@@ -1,36 +1,64 @@
-const Chat = () => {
-  return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <div className="w-1/4 bg-white shadow-md p-4">
-        <h2 className="text-xl font-semibold mb-4">Chats</h2>
-        <ul>
-          <li className="p-2 hover:bg-gray-200 rounded cursor-pointer">
-            John Doe
-          </li>
-          <li className="p-2 hover:bg-gray-200 rounded cursor-pointer">
-            Jane Smith
-          </li>
-        </ul>
-      </div>
+import React, { useState, useEffect, useRef } from "react";
 
-      {/* Chat Window */}
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 p-4 overflow-y-auto">
-          {/* Example message */}
-          <div className="bg-blue-100 text-blue-800 p-2 rounded mb-2 w-fit">
-            Hello! This is a message.
-          </div>
+const Chat: React.FC = () => {
+  const [messages, setMessages] = useState<string[]>([]);
+  const [input, setInput] = useState("");
+  const ws = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    // Connect to WebSocket server
+    ws.current = new WebSocket("ws://localhost:8080");
+
+    ws.current.onopen = () => {
+      console.log("Connected to WebSocket server ✅");
+    };
+
+    ws.current.onmessage = (event) => {
+      setMessages((prev) => [...prev, event.data]);
+    };
+
+    ws.current.onclose = () => {
+      console.log("Disconnected ❌");
+    };
+
+    return () => {
+      ws.current?.close();
+    };
+  }, []);
+
+  const sendMessage = () => {
+    if (input.trim() && ws.current) {
+      ws.current.send(input);
+      setInput("");
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
+      <h1 className="text-2xl font-bold mb-4">💬 Chat App</h1>
+
+      <div className="w-full max-w-md bg-white rounded-lg shadow-md p-4 flex flex-col space-y-2">
+        <div className="flex-1 overflow-y-auto max-h-80 border p-2 rounded">
+          {messages.map((msg, index) => (
+            <p key={index} className="p-1 text-gray-700">
+              {msg}
+            </p>
+          ))}
         </div>
 
-        {/* Input */}
-        <div className="p-4 bg-white flex items-center gap-2">
+        <div className="flex mt-2">
           <input
             type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             placeholder="Type a message..."
-            className="flex-1 p-2 border rounded-lg"
+            className="flex-1 border rounded px-3 py-2 mr-2 focus:outline-none"
           />
-          <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+          <button
+            onClick={sendMessage}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
             Send
           </button>
         </div>
