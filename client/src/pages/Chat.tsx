@@ -1,35 +1,37 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState, AppDispatch } from "../store";
+import { setMessages, addMessage } from "../store/chat-slice";
+import { sendMessage, getMessages } from "../services/chatService";
 
 const Chat: React.FC = () => {
-  const [messages, setMessages] = useState<string[]>([]);
+  const dispatch: AppDispatch = useDispatch();
+  const { user, receiverId, messages } = useSelector((state: RootState) => state.chat);
   const [input, setInput] = useState("");
-  const ws = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    // Connect to WebSocket server
-    ws.current = new WebSocket("ws://localhost:8080");
+    if (!receiverId) return;
 
-    ws.current.onopen = () => {
-      console.log("Connected to WebSocket server ✅");
+    const fetchData = async () => {
+      try {
+        const data = await getMessages(receiverId);
+        dispatch(setMessages(data));
+      } catch (err) {
+        console.error("Failed to fetch messages:", err);
+      }
     };
 
-    ws.current.onmessage = (event) => {
-      setMessages((prev) => [...prev, event.data]);
-    };
+    fetchData();
+  }, [receiverId, dispatch]);
 
-    ws.current.onclose = () => {
-      console.log("Disconnected ❌");
-    };
-
-    return () => {
-      ws.current?.close();
-    };
-  }, []);
-
-  const sendMessage = () => {
-    if (input.trim() && ws.current) {
-      ws.current.send(input);
+  const handleSend = async () => {
+    if (!input.trim() || !receiverId) return;
+    try {
+      const msg = await sendMessage(receiverId, input);
+      dispatch(addMessage(msg));
       setInput("");
+    } catch (err) {
+      console.error("Failed to send message:", err);
     }
   };
 
@@ -40,8 +42,13 @@ const Chat: React.FC = () => {
       <div className="w-full max-w-md bg-white rounded-lg shadow-md p-4 flex flex-col space-y-2">
         <div className="flex-1 overflow-y-auto max-h-80 border p-2 rounded">
           {messages.map((msg, index) => (
-            <p key={index} className="p-1 text-gray-700">
-              {msg}
+            <p
+              key={index}
+              className={`p-1 ${
+                msg.sender === user?.id ? "text-right text-blue-700" : "text-left text-gray-700"
+              }`}
+            >
+              {msg.sender === user?.id ? `Me: ${msg.message}` : `Friend: ${msg.message}`}
             </p>
           ))}
         </div>
@@ -51,12 +58,12 @@ const Chat: React.FC = () => {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type a message..."
             className="flex-1 border rounded px-3 py-2 mr-2 focus:outline-none"
           />
           <button
-            onClick={sendMessage}
+            onClick={handleSend}
             className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
             Send
