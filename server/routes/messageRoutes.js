@@ -1,13 +1,12 @@
-import express from "express";
-import { sendMessage, getMessages } from "../controllers/messageController.js";
+
 import authMiddleware from "../middleware/authMiddleware.js";
+import express from "express";
+import { sendMessage, getConversation, updateMessageStatus } from "../controllers/messageController.js";
 
 const router = express.Router();
 
-// POST /api/messages → send message
 router.post("/", authMiddleware, sendMessage);
-
-// GET /api/messages/:userId → fetch messages with a user
-router.get("/:userId", authMiddleware, getMessages);
+router.get("/:userId/:friendId", authMiddleware, getConversation);
+router.put("/:id/status", authMiddleware, updateMessageStatus);
 
 export default router;

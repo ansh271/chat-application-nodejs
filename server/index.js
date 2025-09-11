@@ -46,17 +46,24 @@ const wss = new WebSocketServer({ server });
 wss.on("connection", (ws) => {
   console.log("Client connected via WebSocket");
 
-  ws.on("message", (data) => {
-    const msg = JSON.parse(data.toString());
-    console.log("Received message:", msg);
+ws.on("message", (data) => {
+  let msg;
+  try {
+    msg = JSON.parse(data.toString());
+  } catch (e) {
+    msg = { text: data.toString() }; // fallback for plain text
+  }
 
-    // Echo message back to all clients
-    wss.clients.forEach(client => {
-      if (client.readyState === 1) { // OPEN
-        client.send(JSON.stringify(msg));
-      }
-    });
+  console.log("Received message:", msg);
+
+  // Echo back
+  wss.clients.forEach(client => {
+    if (client.readyState === 1) {
+      client.send(JSON.stringify(msg));
+    }
   });
+});
+
 
   ws.on("close", () => console.log("Client disconnected"));
 });

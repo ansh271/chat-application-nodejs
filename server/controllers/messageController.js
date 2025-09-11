@@ -1,50 +1,69 @@
-import Message from "../models/message.js";
+import Message from "../models/Message.js";
 
-// Send a new message
+/**
+ * Send a new message
+ */
 export const sendMessage = async (req, res) => {
   try {
-    const { receiverId, message } = req.body;
-    const senderId = req.user.id; // from JWT middleware
+    const { receiver, message } = req.body;
+    const sender = req.user.id; // assuming auth middleware sets req.user
 
-    if (!receiverId || !message) {
+    if (!receiver || !message) {
       return res.status(400).json({ error: "Receiver and message are required" });
     }
 
-    // Save message
     const newMessage = await Message.create({
-      sender: senderId,
-      receiver: receiverId,
+      sender,
+      receiver,
       message,
     });
 
     res.status(201).json(newMessage);
   } catch (err) {
-    console.error("Error in sendMessage:", err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Failed to send message", details: err.message });
   }
 };
 
-// Fetch chat history between two users
-export const getMessages = async (req, res) => {
+/**
+ * Get conversation between two users
+ */
+export const getConversation = async (req, res) => {
   try {
-    const { userId } = req.params; // the person I'm chatting with
-    const myId = req.user.id;      // from JWT
-    const { page = 1, limit = 20 } = req.query; // pagination
+    const { userId, friendId } = req.params;
 
     const messages = await Message.find({
       $or: [
-        { sender: myId, receiver: userId },
-        { sender: userId, receiver: myId },
+        { sender: userId, receiver: friendId },
+        { sender: friendId, receiver: userId },
       ],
-    })
-      .sort({ createdAt: -1 }) // newest first
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+    }).sort({ timestamp: 1 });
 
-    // reverse so frontend sees oldest → newest
-    res.json(messages.reverse());
+    res.json(messages);
   } catch (err) {
-    console.error("Error in getMessages:", err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Failed to fetch messages", details: err.message });
+  }
+};
+
+/**
+ * Update message status (sent, delivered, seen)
+ */
+export const updateMessageStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const updated = await Message.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update message status", details: err.message });
   }
 };

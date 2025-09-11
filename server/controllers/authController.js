@@ -27,7 +27,8 @@ export const signup = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: "Username and password required" });
+    if (!username || !password)
+      return res.status(400).json({ error: "Username and password required" });
 
     const user = await User.findOne({ username });
     if (!user) return res.status(400).json({ error: "Invalid credentials" });
@@ -35,9 +36,18 @@ export const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
 
-    const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    // Token valid for 1 hour
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }   // ⬅️ updated
+    );
 
-    res.json({ token, user: { id: user._id, username: user.username } });
+    res.json({
+      token,
+      expiresIn: 3600, // optional: send expiry time in seconds to frontend
+      user: { id: user._id, username: user.username },
+    });
   } catch (err) {
     console.error("Login Error:", err);
     res.status(500).json({ error: err.message || "Server error" });
